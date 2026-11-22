@@ -92,6 +92,16 @@ python3 S/scripts/xsaves.py mark-seen RUN/digest.json --note "kept 23"
 
 Then report in chat: posts collected, new, AI-related, kept and dropped; the three to five best new finds, one line each; and the note path.
 
+## 7. Dashboard (optional)
+
+One page showing every run, what was kept by kind, and the newest finds. It reads only the ledger and the note:
+
+```
+python3 S/scripts/dashboard.py --note "~/notes/X Saves for Claude.md" --out RUN/dashboard.html
+```
+
+Give the user the path. If they ask to see it, open it in a browser tab.
+
 ## Rules
 
 - Read-only on X: never like, bookmark, follow, reply or post, and never sign in for the user.

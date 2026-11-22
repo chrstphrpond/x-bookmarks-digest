@@ -4,6 +4,10 @@ A Claude Code skill I run once a week. It goes through my X bookmarks and likes,
 
 Built with Claude Code by Christopher Pond Maquidato, October 2026.
 
+![The dashboard: 139 posts kept from 632 saves across 7 runs, the share kept in each run, what was kept by kind, and the newest finds](docs/dashboard.png)
+
+The dashboard, built from my own run history. `scripts/dashboard.py` writes it as one HTML file from the ledger and the note.
+
 ## What it does
 
 1. **Collect.** Opens my bookmarks and likes in a browser tab I am already signed in to, scrolls in small steps and saves the posts. It stops at the end of the list or after 15 posts in a row it has already handled.
@@ -11,6 +15,11 @@ Built with Claude Code by Christopher Pond Maquidato, October 2026.
 3. **Judge.** Claude sorts each post into a kind (skill, MCP server, repo, technique, resource, build idea) or drops it.
 4. **Write.** Adds one dated section to the note, newest first. Earlier runs are never rewritten.
 5. **Mark handled.** Only after the note is saved, so a failed run loses nothing.
+6. **Dashboard.** One page with every run, what was kept and the newest finds.
+
+```
+python3 scripts/dashboard.py --note ~/notes/"X Saves for Claude.md" --out dashboard.html
+```
 
 ## What keeps it reliable
 
@@ -25,6 +34,7 @@ Built with Claude Code by Christopher Pond Maquidato, October 2026.
 |---|---|
 | `SKILL.md` | What Claude reads: the steps, the sorting rules, the note format |
 | `scripts/xsaves.py` | Collecting, expanding and the handled-posts ledger. Plain Python, no packages |
+| `scripts/dashboard.py` | The one-page dashboard. Reads the ledger and the note, writes one HTML file |
 
 ## Needs
 
