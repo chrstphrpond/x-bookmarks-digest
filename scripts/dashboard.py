@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build a one-page dashboard for x-saves-harvest from what the skill already keeps.
+"""Build a one-page dashboard for x-bookmarks-digest from what the skill already keeps.
 
 Reads the handled-posts ledger (seen.json) and the notes file the skill writes, and
 writes one HTML file. It changes neither file. The page itself asks X for a post only when
@@ -15,7 +15,7 @@ import re
 import sys
 from pathlib import Path
 
-SEEN_FILE = Path.home() / ".local/state/x-saves-harvest" / "seen.json"
+SEEN_FILE = Path.home() / ".local/state/x-bookmarks-digest" / "seen.json"
 RUN_EVERY_DAYS = 7
 
 KINDS = ["Skills", "MCP servers", "Repos and tools", "Techniques", "Resources", "Build ideas"]
@@ -259,13 +259,13 @@ def build(seen, entries, today):
 <style>{CSS}</style>
 <div class="app" id="top">
   <nav aria-label="Sections">
-    <div class="mark">x-saves</div>
+    <div class="mark">x-bookmarks</div>
     <a href="#top">{icon(UI['home'])}<span>Overview</span></a>
     <a href="#finds">{icon(UI['bookmark'])}<span>Finds</span></a>
     <a href="#kinds">{icon(UI['layers'])}<span>Kinds</span></a>
     <a href="#runs">{icon(UI['clock'])}<span>Runs</span></a>
     <div class="status{' late' if late else ''}">{e(due_text)}</div>
-    <div class="who"><b>x-saves-harvest</b>Read-only, weekly</div>
+    <div class="who"><b>x-bookmarks-digest</b>Read-only, weekly</div>
   </nav>
 
   <main>

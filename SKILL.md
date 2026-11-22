@@ -1,5 +1,5 @@
 ---
-name: x-saves-harvest
+name: x-bookmarks-digest
 description: Turn the user's X (Twitter) bookmarks and likes into a backlog of Claude skills, MCP servers, repos and techniques in the Obsidian vault. Use when asked to check, harvest or go through X saves, bookmarks or likes, "what did I save on X for Claude", "x-saves", or for the weekly X saves run. Read-only on X.
 ---
 
@@ -7,7 +7,7 @@ description: Turn the user's X (Twitter) bookmarks and likes into a backlog of C
 
 Collects posts from X through an Orca tab, keeps the new AI-tool ones, expands them with full text and repo facts, and appends what is worth keeping to `Notes/X Saves for Claude.md` in the notes vault. Remembers handled posts, so each run shows only new saves.
 
-`S` below is this skill's folder; `RUN` is `~/.local/state/x-saves-harvest/runs/<YYYY-MM-DD>`.
+`S` below is this skill's folder; `RUN` is `~/.local/state/x-bookmarks-digest/runs/<YYYY-MM-DD>`.
 
 ## 1. Preflight
 
@@ -67,7 +67,7 @@ File: `~/notes/X Saves for Claude.md` (set this to your own notes folder). Creat
 
 #reference #x-saves #claude-code
 
-Claude skills, MCP servers, repos and techniques from my X bookmarks and likes, newest run first. Written by the `x-saves-harvest` skill; handled post ids are in `~/.local/state/x-saves-harvest/seen.json`.
+Claude skills, MCP servers, repos and techniques from my X bookmarks and likes, newest run first. Written by the `x-bookmarks-digest` skill; handled post ids are in `~/.local/state/x-bookmarks-digest/seen.json`.
 
 ## 2026-10-25
 

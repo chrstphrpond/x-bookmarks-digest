@@ -1,4 +1,4 @@
-# x-saves-harvest
+# x-bookmarks-digest
 
 A Claude Code skill I run once a week. It goes through my X bookmarks and likes, keeps the new posts about AI tools, checks each linked GitHub repo, and adds what is worth keeping to a note. It only reads; it never likes, follows, replies or posts.
 
@@ -24,7 +24,7 @@ python3 scripts/dashboard.py --note ~/notes/"X Saves for Claude.md" --out dashbo
 ## What keeps it reliable
 
 - **It checks the account first.** `--expect-account` stops the run if the browser is signed in to a different account.
-- **It remembers what it handled.** Post ids are kept in `~/.local/state/x-saves-harvest/seen.json`, so each run shows only new saves and a rerun never doubles an entry.
+- **It remembers what it handled.** Post ids are kept in `~/.local/state/x-bookmarks-digest/seen.json`, so each run shows only new saves and a rerun never doubles an entry.
 - **It stops loudly.** If the tab is moved, or the list stops loading early, the script says so and keeps what it had.
 - **It never signs in for me.** If the session has expired it asks me to sign in.
 
@@ -55,6 +55,6 @@ Sources: [X for Websites](https://docs.x.com/x-for-websites/overview), [display 
 
 ## Needs
 
-- Claude Code, with this folder copied to `~/.claude/skills/x-saves-harvest/`.
+- Claude Code, with this folder copied to `~/.claude/skills/x-bookmarks-digest/`.
 - The Orca app, whose `orca` CLI drives the browser tab the collector reads, and the `gh` CLI for repo facts.
 - Your own X handle for `--expect-account`, and your own notes path in step 5 of `SKILL.md`.

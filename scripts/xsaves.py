@@ -20,7 +20,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
 
-STATE_DIR = Path.home() / ".local/state/x-saves-harvest"
+STATE_DIR = Path.home() / ".local/state/x-bookmarks-digest"
 SEEN_FILE = STATE_DIR / "seen.json"
 SOURCES = {
     "bookmarks": "https://x.com/i/history",
