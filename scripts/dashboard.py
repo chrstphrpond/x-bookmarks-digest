@@ -2,7 +2,8 @@
 """Build a one-page dashboard for x-saves-harvest from what the skill already keeps.
 
 Reads the handled-posts ledger (seen.json) and the notes file the skill writes, and
-writes one self-contained HTML file. It reads nothing from X and changes neither file.
+writes one HTML file. It changes neither file. The page itself asks X for a post only when
+the reader presses "Post" on a row, through X's official embedded-post widget.
 """
 from __future__ import annotations
 
@@ -95,7 +96,7 @@ CSS = """
 :root{--bg:#000;--text:#e7e9ea;--dim:#71767b;--line:#2f3336;--card:#16181c;--hover:rgba(231,233,234,.06);--blue:#1d9bf0;--red:#f4212e;--track:#2f3336}
 *{box-sizing:border-box}
 html{scroll-behavior:smooth;scroll-padding-top:110px}
-body{margin:0;background:var(--bg);color:var(--text);font:15px/20px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;font-variant-numeric:tabular-nums}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/20px "Helvetica Neue",Helvetica,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;font-variant-numeric:tabular-nums}
 a{color:inherit;text-decoration:none}
 svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
 ul{list-style:none;margin:0;padding:0}
@@ -136,7 +137,12 @@ main{border-left:1px solid var(--line);border-right:1px solid var(--line);min-he
 .item p{margin:2px 0 0;overflow-wrap:anywhere}
 .act{display:flex;gap:44px;margin-top:6px;color:var(--dim);font-size:13px}
 .act>*{display:inline-flex;align-items:center;gap:6px;min-height:36px} .act svg{width:18px;height:18px}
-.act a:hover{color:var(--blue)}
+.act a:hover,.act button:hover{color:var(--blue)}
+.act button{background:none;border:0;padding:0;color:inherit;font:inherit;cursor:pointer}
+.act button[aria-expanded=true]{color:var(--blue)}
+.act button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.embed{min-height:120px;margin-top:4px} .embed[hidden]{display:none} .embed .twitter-tweet{margin:0!important}
+.embed .wait,.embed .fail{color:var(--dim);font-size:13px;padding:12px 0} .embed .fail a{color:var(--blue)}
 .empty{padding:32px 16px;color:var(--dim);text-align:center}
 aside{position:sticky;top:0;padding:12px 0 24px;display:grid;gap:16px}
 .card{background:var(--card);border-radius:16px;overflow:hidden}
@@ -162,6 +168,14 @@ const tabs=[...document.querySelectorAll('.tabs button')],items=[...document.que
 function pick(kind){tabs.forEach(b=>b.setAttribute('aria-selected',String(b.dataset.kind===kind)));let n=0;
 items.forEach(i=>{const on=kind==='All'||i.dataset.kind===kind;i.hidden=!on;if(on)n++});none.hidden=n>0}
 tabs.forEach(b=>b.addEventListener('click',()=>pick(b.dataset.kind)));
+let widgets;
+function loadWidgets(){return widgets||(widgets=new Promise((ok,no)=>{const t=window.twttr=window.twttr||{};t._e=t._e||[];t.ready=t.ready||(f=>t._e.push(f));
+const s=document.createElement('script');s.src='https://platform.twitter.com/widgets.js';s.async=true;s.onerror=no;document.head.appendChild(s);
+t.ready(ok);setTimeout(no,15000)}))}
+document.querySelectorAll('.show').forEach(b=>b.addEventListener('click',()=>{const box=b.closest('.item').querySelector('.embed'),open=b.getAttribute('aria-expanded')==='true';
+b.setAttribute('aria-expanded',String(!open));box.hidden=open;if(open||box.dataset.done)return;box.dataset.done='1';box.innerHTML='<div class="wait">Loading the post from X</div>';
+const fail=()=>{box.innerHTML='<div class="fail">X did not return this post. <a href="'+b.dataset.url+'">Open it on X</a></div>'};
+loadWidgets().then(t=>t.widgets.createTweet(b.dataset.post,box,{theme:'dark',dnt:true,conversation:'none'})).then(el=>{const w=box.querySelector('.wait');if(w)w.remove();if(!el)fail()}).catch(fail)}));
 document.querySelectorAll('.trend').forEach(t=>t.addEventListener('click',()=>{pick(t.dataset.kind);document.getElementById('finds').scrollIntoView()}));
 """
 
@@ -194,9 +208,13 @@ def build(seen, entries, today):
     for x in sorted(entries, key=lambda x: x["run"], reverse=True)[:TIMELINE]:
         name = f'<a class="name" href="{e(x["url"])}">{e(x["name"])}</a>' if x["url"] else f'<span class="name">{e(x["name"])}</span>'
         acts = [f'<span>{icon(UI["star"])}{e(x["stars"])}</span>'] if x["stars"] else []
+        pid = None
         if x["url"]:
             acts.append(f'<a href="{e(x["url"])}">{icon(UI["link"])}Repo</a>')
-        if x["post"]:
+        pid = re.search(r"/status/(\d+)", x["post"])
+        if pid:
+            acts.append(f'<button class="show" data-post="{pid.group(1)}" data-url="{e(x["post"])}" aria-expanded="false">{icon(UI["post"])}Post</button>')
+        elif x["post"]:
             acts.append(f'<a href="{e(x["post"])}">{icon(UI["post"])}Post</a>')
         items.append(f"""
       <li class="item" data-kind="{e(x['kind'])}">
@@ -205,6 +223,7 @@ def build(seen, entries, today):
           <div class="hd">{name}<span>{e(x['kind'])}</span><span>·</span><span><time datetime="{e(x['run'])}">{day(x['run']):%b %d}</time></span></div>
           {f'<p>{e(x["text"])}</p>' if x['text'] else ''}
           {f'<div class="act">{"".join(acts)}</div>' if acts else ''}
+          {'<div class="embed" hidden></div>' if pid else ''}
         </div>
       </li>""")
     if not items:

@@ -38,17 +38,20 @@ python3 scripts/dashboard.py --note ~/notes/"X Saves for Claude.md" --out dashbo
 
 ## Dashboard design
 
-The page borrows X's dark theme so the saves read like the feed they came from.
+X does not publish a design system, UI kit or component library for other people's products. I checked on Nov 22, 2026: its public resources are a brand toolkit, embeddable posts and timelines, and a few older open-source projects. So the page uses the two official things that exist and says where the rest comes from.
 
-| Part | Rule |
+| Part | Source |
 |---|---|
-| Layout | Three columns: section links, a 600px timeline, a 350px column of cards. Below 1060px the cards drop under the timeline; below 700px the links go |
-| Colour | Black `#000`, text `#e7e9ea`, secondary `#71767b`, lines `#2f3336`, cards `#16181c`. One accent, blue `#1d9bf0`, for the selected tab and anything kept. Red `#f4212e` only when a run is due |
-| Type | The system sans at 15/20, 13/16 for secondary text, 20px bold for headers, tabular numbers |
-| Shapes | Full-round pills, tabs and bars; 16px card corners; 40px round marks for each find |
-| Timeline row | Mark by kind, name with kind and date, one line of description, then stars, repo and the original post |
-| Tabs | Filter the timeline by kind. A card row on the right does the same |
-| Icons | lucide, one stroke weight |
+| Posts | **Official.** "Post" on a row opens X's own embedded post, dark theme, loaded from `platform.twitter.com/widgets.js` with `dnt` on. X draws it, so it follows X's display requirements |
+| Black and white | **Official.** The X brand guide gives black `#000000` and white `#FFFFFF` as the primary colours |
+| Typeface | Helvetica Neue first, the face the partner brand guide uses. X's own Chirp is not licensed for other products, so it is not used |
+| Blue, greys, card colour | Not official. Read from x.com's dark theme: blue `#1d9bf0`, secondary text `#71767b`, lines `#2f3336`, cards `#16181c` |
+| Layout | Not official. Modelled on X's home page: section links, a 600px timeline with kind tabs, a 350px column of cards |
+| Icons | lucide. X's interface icons and logo are not used |
+
+The page is not an X product and does not use the X logo. The only time the logo appears is inside X's own embed.
+
+Sources: [X for Websites](https://docs.x.com/x-for-websites/overview), [display requirements](https://docs.x.com/developer-terms/display-requirements), [brand toolkit](https://about.x.com/en/who-we-are/brand-toolkit).
 
 ## Needs
 
