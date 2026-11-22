@@ -4,7 +4,7 @@ A Claude Code skill I run once a week. It goes through my X bookmarks and likes,
 
 Built with Claude Code by Christopher Pond Maquidato, October 2026.
 
-![The dashboard: 139 posts kept from 632 saves across 7 runs, the share kept in each run, what was kept by kind, and the newest finds](docs/dashboard.png)
+![The dashboard, laid out like X's dark theme: section links on the left, a timeline of kept finds in the middle with kind tabs, and cards for what was kept and each run on the right](docs/dashboard.png)
 
 The dashboard, built from my own run history. `scripts/dashboard.py` writes it as one HTML file from the ledger and the note.
 
@@ -35,6 +35,20 @@ python3 scripts/dashboard.py --note ~/notes/"X Saves for Claude.md" --out dashbo
 | `SKILL.md` | What Claude reads: the steps, the sorting rules, the note format |
 | `scripts/xsaves.py` | Collecting, expanding and the handled-posts ledger. Plain Python, no packages |
 | `scripts/dashboard.py` | The one-page dashboard. Reads the ledger and the note, writes one HTML file |
+
+## Dashboard design
+
+The page borrows X's dark theme so the saves read like the feed they came from.
+
+| Part | Rule |
+|---|---|
+| Layout | Three columns: section links, a 600px timeline, a 350px column of cards. Below 1060px the cards drop under the timeline; below 700px the links go |
+| Colour | Black `#000`, text `#e7e9ea`, secondary `#71767b`, lines `#2f3336`, cards `#16181c`. One accent, blue `#1d9bf0`, for the selected tab and anything kept. Red `#f4212e` only when a run is due |
+| Type | The system sans at 15/20, 13/16 for secondary text, 20px bold for headers, tabular numbers |
+| Shapes | Full-round pills, tabs and bars; 16px card corners; 40px round marks for each find |
+| Timeline row | Mark by kind, name with kind and date, one line of description, then stars, repo and the original post |
+| Tabs | Filter the timeline by kind. A card row on the right does the same |
+| Icons | lucide, one stroke weight |
 
 ## Needs
 

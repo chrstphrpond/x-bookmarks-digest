@@ -28,6 +28,22 @@ ICONS = {  # lucide, 24px viewBox, stroke 2
 }
 
 
+UI = {  # lucide
+    "home": '<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+    "bookmark": '<path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/>',
+    "layers": '<path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"/><path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12"/><path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17"/>',
+    "clock": '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+    "star": '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
+    "link": '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
+    "post": '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
+}
+TIMELINE = 40  # newest entries shown in the timeline
+
+
+def icon(paths):
+    return f'<svg viewBox="0 0 24 24" aria-hidden="true">{paths}</svg>'
+
+
 def kind_of(heading):
     h = heading.lower()
     for k in KINDS:
@@ -51,10 +67,19 @@ def read_note(path):
         if run and kind and line.startswith("- "):
             body = line[2:]
             link = re.match(r"\[([^\]]+)\]\((https?://[^)]+)\)", body)
+            rest = body[link.end():] if link else body
             name = link.group(1) if link else re.split(r"[:.]", body, maxsplit=1)[0]
+            if not link:
+                rest = body[len(name):]
             stars = re.search(r"([\d.]+k?) stars", body)
+            post = re.search(r"\[post\]\((https?://[^)]+)\)", body)
+            text = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", rest).lstrip(":. ").strip()
+            text = re.split(r"\s+[\d.]+k? stars", text)[0]          # facts and the post link come after the description
+            text = re.sub(r"\s*\bpost\b\.?\s*$", "", text).strip()
+            if len(text) > 200:
+                text = text[:200].rsplit(" ", 1)[0] + "…"
             entries.append({"run": run, "kind": kind, "name": name.strip()[:70], "url": link.group(2) if link else "",
-                            "stars": stars.group(1) if stars else ""})
+                            "stars": stars.group(1) if stars else "", "post": post.group(1) if post else "", "text": text})
     return entries
 
 
@@ -64,6 +89,81 @@ def e(text):
 
 def day(text):
     return dt.date.fromisoformat(text)
+
+
+CSS = """
+:root{--bg:#000;--text:#e7e9ea;--dim:#71767b;--line:#2f3336;--card:#16181c;--hover:rgba(231,233,234,.06);--blue:#1d9bf0;--red:#f4212e;--track:#2f3336}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:110px}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/20px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;font-variant-numeric:tabular-nums}
+a{color:inherit;text-decoration:none}
+svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+ul{list-style:none;margin:0;padding:0}
+.app{display:grid;grid-template-columns:260px 600px 350px;gap:0 28px;justify-content:center;align-items:start;max-width:1280px;margin:0 auto}
+nav{position:sticky;top:0;height:100vh;padding:8px 12px 16px;display:flex;flex-direction:column;gap:4px}
+nav .mark{font-size:20px;font-weight:800;padding:14px 12px 18px}
+nav a{display:flex;align-items:center;gap:20px;padding:12px;border-radius:9999px;font-size:20px;line-height:24px;min-height:50px;width:fit-content;padding-right:24px}
+nav a:hover{background:var(--hover)} nav a svg{width:26px;height:26px}
+nav a:focus-visible,.tabs button:focus-visible,.act a:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.status{margin-top:16px;padding:14px 20px;border-radius:9999px;background:var(--blue);color:#fff;font-weight:700;font-size:17px;text-align:center;width:90%}
+.status.late{background:var(--red)}
+.who{margin-top:auto;padding:12px;color:var(--dim)} .who b{display:block;color:var(--text)}
+main{border-left:1px solid var(--line);border-right:1px solid var(--line);min-height:100vh;min-width:0}
+.top{position:sticky;top:0;z-index:2;background:rgba(0,0,0,.72);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.top h1{font-size:20px;line-height:24px;font-weight:700;margin:0;padding:14px 16px 2px}
+.top p{margin:0;padding:0 16px 8px;color:var(--dim);font-size:13px;line-height:16px}
+.tabs{display:flex;overflow-x:auto;scrollbar-width:none}
+.tabs button{flex:1 0 auto;min-height:53px;padding:0 16px;background:none;border:0;color:var(--dim);font:500 15px/20px inherit;font-family:inherit;cursor:pointer;position:relative}
+.tabs button:hover{background:var(--hover)}
+.tabs button[aria-selected=true]{color:var(--text);font-weight:700}
+.tabs button[aria-selected=true]::after{content:"";position:absolute;left:50%;bottom:0;transform:translateX(-50%);width:56px;max-width:70%;height:4px;border-radius:9999px;background:var(--blue)}
+.hero{padding:20px 16px 18px;border-bottom:1px solid var(--line)}
+.hero .big{font-size:52px;line-height:56px;font-weight:800;margin:0 0 14px;text-wrap:balance}
+.hero .big em{font-style:normal;color:var(--blue)}
+.bar{display:flex;height:8px;border-radius:9999px;overflow:hidden;background:var(--track)}
+.bar i{display:block;height:100%} .bar .k{background:var(--blue)} .bar .a{background:#536471}
+.legend{display:flex;flex-wrap:wrap;gap:4px 22px;margin-top:12px;color:var(--dim)}
+.legend b{color:var(--text);font-weight:700;margin-right:5px}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:9999px;margin-right:7px}
+.item{display:grid;grid-template-columns:40px 1fr;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line)}
+.item:hover{background:rgba(231,233,234,.03)}
+.item[hidden]{display:none}
+.av{width:40px;height:40px;border-radius:9999px;background:var(--card);display:grid;place-items:center;color:var(--text)}
+.item .hd{display:flex;gap:4px;min-width:0;color:var(--dim)}
+.item .name{color:var(--text);font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item a.name:hover{text-decoration:underline}
+.item .hd span{white-space:nowrap}
+.item p{margin:2px 0 0;overflow-wrap:anywhere}
+.act{display:flex;gap:44px;margin-top:6px;color:var(--dim);font-size:13px}
+.act>*{display:inline-flex;align-items:center;gap:6px;min-height:36px} .act svg{width:18px;height:18px}
+.act a:hover{color:var(--blue)}
+.empty{padding:32px 16px;color:var(--dim);text-align:center}
+aside{position:sticky;top:0;padding:12px 0 24px;display:grid;gap:16px}
+.card{background:var(--card);border-radius:16px;overflow:hidden}
+.card h2{font-size:20px;line-height:24px;font-weight:800;margin:0;padding:12px 16px}
+.trend{display:grid;grid-template-columns:1fr auto;align-items:center;gap:2px 12px;padding:10px 16px;min-height:60px;width:100%;background:none;border:0;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.trend:hover{background:rgba(255,255,255,.03)}
+.trend small{color:var(--dim);font-size:13px;line-height:16px;grid-column:1} .trend b{grid-column:1;font-weight:700}
+.trend .n{grid-row:1/3;grid-column:2;font-size:20px;font-weight:700}
+.trend .bar{grid-column:1/3;height:4px;margin-top:6px}
+.run{display:grid;grid-template-columns:54px 1fr 34px;align-items:center;gap:12px;padding:8px 16px;min-height:52px}
+.run time b{display:block;font-weight:700} .run time{color:var(--dim);font-size:13px;line-height:16px}
+.run .mid small{display:block;color:var(--dim);font-size:13px;line-height:16px;margin-bottom:5px}
+.run .mid .bar{height:6px} .run .kept{text-align:right;font-weight:700}
+.card .foot{padding:10px 16px 14px;color:var(--dim);font-size:13px;line-height:16px}
+@media (max-width:1240px){.app{grid-template-columns:76px 600px 350px} nav .mark,nav a span,.who,.status{display:none} nav a{padding:12px}}
+@media (max-width:1060px){.app{grid-template-columns:76px minmax(0,600px)} aside{grid-column:2;position:static;padding:16px 0 32px}}
+@media (max-width:700px){.app{grid-template-columns:minmax(0,1fr)} nav{display:none} aside{grid-column:1;padding:16px 12px 32px} main{border:0} .hero .big{font-size:38px;line-height:42px} .act{gap:28px}}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+"""
+
+JS = """
+const tabs=[...document.querySelectorAll('.tabs button')],items=[...document.querySelectorAll('.item')],none=document.querySelector('.empty.filter');
+function pick(kind){tabs.forEach(b=>b.setAttribute('aria-selected',String(b.dataset.kind===kind)));let n=0;
+items.forEach(i=>{const on=kind==='All'||i.dataset.kind===kind;i.hidden=!on;if(on)n++});none.hidden=n>0}
+tabs.forEach(b=>b.addEventListener('click',()=>pick(b.dataset.kind)));
+document.querySelectorAll('.trend').forEach(t=>t.addEventListener('click',()=>{pick(t.dataset.kind);document.getElementById('finds').scrollIntoView()}));
+"""
 
 
 def build(seen, entries, today):
@@ -79,129 +179,111 @@ def build(seen, entries, today):
 
     last = day(runs[-1]["date"]) if runs else None
     if last is None:
-        due_text, due_cls = "No runs yet", "due late"
+        due_text, late = "No runs yet", True
     else:
         left = RUN_EVERY_DAYS - (today - last).days
-        due_text = f"Next run in {left} day{'s' if left != 1 else ''}" if left > 0 else ("Run due today" if left == 0 else f"Run overdue by {-left} day{'s' if left != -1 else ''}")
-        due_cls = "due" if left > 0 else "due late"
+        due_text = f"Next run in {left} day{'s' if left != 1 else ''}" if left > 0 else ("Run due today" if left == 0 else f"Overdue by {-left} day{'s' if left != -1 else ''}")
+        late = left <= 0
 
     def pct(n, of):
         return f"{(100 * n / of) if of else 0:.2f}%"
 
+    tabs = "".join(f'<button role="tab" data-kind="{e(k)}" aria-selected="{"true" if k == "All" else "false"}">{e(k)}</button>' for k in ["All"] + KINDS)
+
+    items = []
+    for x in sorted(entries, key=lambda x: x["run"], reverse=True)[:TIMELINE]:
+        name = f'<a class="name" href="{e(x["url"])}">{e(x["name"])}</a>' if x["url"] else f'<span class="name">{e(x["name"])}</span>'
+        acts = [f'<span>{icon(UI["star"])}{e(x["stars"])}</span>'] if x["stars"] else []
+        if x["url"]:
+            acts.append(f'<a href="{e(x["url"])}">{icon(UI["link"])}Repo</a>')
+        if x["post"]:
+            acts.append(f'<a href="{e(x["post"])}">{icon(UI["post"])}Post</a>')
+        items.append(f"""
+      <li class="item" data-kind="{e(x['kind'])}">
+        <span class="av">{icon(ICONS[x['kind']])}</span>
+        <div>
+          <div class="hd">{name}<span>{e(x['kind'])}</span><span>·</span><span><time datetime="{e(x['run'])}">{day(x['run']):%b %d}</time></span></div>
+          {f'<p>{e(x["text"])}</p>' if x['text'] else ''}
+          {f'<div class="act">{"".join(acts)}</div>' if acts else ''}
+        </div>
+      </li>""")
+    if not items:
+        items.append('<li class="empty">Nothing kept yet. Run the skill once to fill this in.</li>')
+
+    trends = "".join(f"""
+      <button class="trend" data-kind="{e(k)}">
+        <small>Kind</small><b>{e(k)}</b><span class="n">{by_kind[k]}</span>
+        <span class="bar"><i class="k" style="width:{pct(by_kind[k], top_kind)}"></i></span>
+      </button>""" for k in KINDS)
+
     run_rows = []
     for r in reversed(runs):
-        n, a, k = r.get("new", 0), r.get("ai", 0), kept_by_run.get(r["date"], 0)
-        a, k = min(a, n), min(k, min(a, n))
+        n, a = r.get("new", 0), r.get("ai", 0)
+        a = min(a, n)
+        k = min(kept_by_run.get(r["date"], 0), a)
         d = day(r["date"])
         run_rows.append(f"""
       <li class="run">
-        <time datetime="{e(r['date'])}"><b>{d:%d}</b>{d:%b}</time>
-        <span class="n">{n}</span>
-        <span class="bar" role="img" aria-label="{n} checked, {a} about AI tools, {k} kept">
-          <i class="k" style="width:{pct(k, n)}"></i><i class="a" style="width:{pct(a - k, n)}"></i>
-        </span>
+        <time datetime="{e(r['date'])}"><b>{d:%b %d}</b>{d:%Y}</time>
+        <span class="mid"><small>{n} checked</small><span class="bar" role="img" aria-label="{n} checked, {a} about AI tools, {k} kept"><i class="k" style="width:{pct(k, n)}"></i><i class="a" style="width:{pct(a - k, n)}"></i></span></span>
         <span class="kept">{k}</span>
       </li>""")
-
-    kind_rows = []
-    for k in KINDS:
-        kind_rows.append(f"""
-      <li class="kind">
-        <svg viewBox="0 0 24 24" aria-hidden="true">{ICONS[k]}</svg>
-        <span class="label">{e(k)}</span>
-        <span class="bar"><i class="k" style="width:{pct(by_kind[k], top_kind)}"></i></span>
-        <span class="n">{by_kind[k]}</span>
-      </li>""")
-
-    newest = sorted(entries, key=lambda x: x["run"], reverse=True)[:8]
-    find_rows = []
-    for x in newest:
-        name = f'<a class="name" href="{e(x["url"])}">{e(x["name"])}</a>' if x["url"] else f'<span class="name">{e(x["name"])}</span>'
-        find_rows.append(f"""
-      <li class="find">
-        <svg viewBox="0 0 24 24" aria-hidden="true">{ICONS[x['kind']]}</svg>
-        {name}
-        <span class="stars">{e(x['stars']) + ' stars' if x['stars'] else ''}</span>
-        <time datetime="{e(x['run'])}">{day(x['run']):%b %d}</time>
-      </li>""")
-    if not find_rows:
-        find_rows.append('<li class="empty">Nothing kept yet. Run the skill once to fill this in.</li>')
     if not run_rows:
         run_rows.append('<li class="empty">No runs recorded yet.</li>')
 
+    shown = min(kept, TIMELINE)
     return f"""<!doctype html>
 <html lang="en">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>X saves</title>
-<style>
-:root{{--paper:#f3f0e8;--ink:#1e1c17;--mid:#6f6a5e;--soft:#d9d4c6;--faint:#e7e3d8;--accent:#c8501a}}
-*{{box-sizing:border-box}}
-body{{margin:0;background:var(--paper);color:var(--ink);font:16px/1.45 ui-sans-serif,"Avenir Next","Segoe UI",system-ui,sans-serif;font-variant-numeric:tabular-nums}}
-main{{max-width:1040px;margin:0 auto;padding:40px 24px 64px}}
-header{{display:flex;justify-content:space-between;align-items:baseline;gap:16px;color:var(--mid);font-size:15px}}
-.due.late{{color:var(--accent);font-weight:600}}
-h1{{font-size:clamp(40px,7vw,76px);line-height:1.02;font-weight:650;margin:28px 0 20px;max-width:14ch;text-wrap:balance}}
-h1 em{{font-style:normal;color:var(--accent)}}
-h2{{font-size:15px;font-weight:600;color:var(--mid);margin:0 0 14px}}
-.funnel{{display:flex;height:14px;border-radius:7px;overflow:hidden;background:var(--faint)}}
-.funnel i,.bar i{{display:block;height:100%}}
-.k{{background:var(--ink)}} .a{{background:var(--soft)}}
-.funnel .k{{background:var(--accent)}}
-.legend{{display:flex;flex-wrap:wrap;gap:6px 28px;margin:12px 0 0;padding:0;list-style:none;color:var(--mid);font-size:15px}}
-.legend b{{color:var(--ink);font-weight:600;margin-right:6px}}
-.legend i{{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:8px}}
-.grid{{display:grid;grid-template-columns:1.25fr 1fr;gap:56px;margin-top:64px}}
-ul{{list-style:none;margin:0;padding:0}}
-.run{{display:grid;grid-template-columns:52px 60px 1fr 32px;align-items:center;gap:14px;min-height:44px}}
-.run time{{font-size:13px;color:var(--mid);line-height:1.1}} .run time b{{display:block;font-size:19px;color:var(--ink);font-weight:600}}
-.run .n,.kind .n{{text-align:right;color:var(--mid)}}
-.run .kept{{text-align:right;font-weight:600}}
-.bar{{display:flex;height:10px;border-radius:5px;overflow:hidden;background:var(--faint)}}
-.cols{{display:grid;grid-template-columns:52px 60px 1fr 32px;gap:14px;font-size:13px;color:var(--mid);margin-bottom:4px}}
-.cols span:nth-child(2),.cols span:nth-child(4){{text-align:right}}
-.kind{{display:grid;grid-template-columns:22px 128px 1fr 28px;align-items:center;gap:12px;min-height:44px}}
-svg{{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;color:var(--mid);flex:none}}
-.finds{{margin-top:64px}}
-.find{{display:grid;grid-template-columns:22px 1fr auto 56px;align-items:center;gap:12px;min-height:44px}}
-.find .name{{color:var(--ink);font-weight:550;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:10px 0}}
-.find a.name:hover{{text-decoration:underline}} .find a.name:focus-visible{{outline:2px solid var(--accent);outline-offset:2px}}
-.find .stars,.find time{{color:var(--mid);font-size:14px;text-align:right}}
-.empty{{color:var(--mid);padding:12px 0}}
-@media (max-width:760px){{.grid{{grid-template-columns:1fr;gap:48px}} .find{{grid-template-columns:22px 1fr 56px}} .find .stars{{display:none}} header{{flex-direction:column;gap:2px}}}}
-</style>
-<main>
-  <header><span>X saves, read-only, {len(runs)} run{'s' if len(runs) != 1 else ''}{f', last on {last:%b %d}' if last else ''}</span><span class="{due_cls}">{e(due_text)}</span></header>
-  <h1><em>{kept}</em> kept from {checked} saves</h1>
-  <div class="funnel" role="img" aria-label="{checked} saves checked, {ai} about AI tools, {kept} kept">
-    <i class="k" style="width:{pct(min(kept, ai), checked)}"></i><i class="a" style="width:{pct(max(ai - kept, 0), checked)}"></i>
-  </div>
-  <ul class="legend">
-    <li><i style="background:var(--accent)"></i><b>{kept}</b>kept in notes</li>
-    <li><i style="background:var(--soft)"></i><b>{max(ai - kept, 0)}</b>about AI tools, dropped</li>
-    <li><i style="background:var(--faint)"></i><b>{checked - ai}</b>off topic</li>
-  </ul>
+<style>{CSS}</style>
+<div class="app" id="top">
+  <nav aria-label="Sections">
+    <div class="mark">x-saves</div>
+    <a href="#top">{icon(UI['home'])}<span>Overview</span></a>
+    <a href="#finds">{icon(UI['bookmark'])}<span>Finds</span></a>
+    <a href="#kinds">{icon(UI['layers'])}<span>Kinds</span></a>
+    <a href="#runs">{icon(UI['clock'])}<span>Runs</span></a>
+    <div class="status{' late' if late else ''}">{e(due_text)}</div>
+    <div class="who"><b>x-saves-harvest</b>Read-only, weekly</div>
+  </nav>
 
-  <div class="grid">
-    <section>
+  <main>
+    <div class="top">
+      <h1>Saves</h1>
+      <p>{len(runs)} run{'s' if len(runs) != 1 else ''}{f', last on {last:%b %d}' if last else ''}</p>
+      <div class="tabs" role="tablist" aria-label="Kind">{tabs}</div>
+    </div>
+    <section class="hero">
+      <p class="big"><em>{kept}</em> kept from {checked} saves</p>
+      <div class="bar" role="img" aria-label="{checked} saves checked, {ai} about AI tools, {kept} kept">
+        <i class="k" style="width:{pct(min(kept, ai), checked)}"></i><i class="a" style="width:{pct(max(ai - kept, 0), checked)}"></i>
+      </div>
+      <div class="legend">
+        <span><i style="background:var(--blue)"></i><b>{kept}</b>kept</span>
+        <span><i style="background:#536471"></i><b>{max(ai - kept, 0)}</b>AI tools, dropped</span>
+        <span><i style="background:var(--track)"></i><b>{checked - ai}</b>off topic</span>
+      </div>
+    </section>
+    <ul id="finds" aria-label="Newest {shown} of {kept} kept">{''.join(items)}
+      <li class="empty filter" hidden>None of the newest {shown} are this kind.</li>
+    </ul>
+  </main>
+
+  <aside>
+    <section class="card" id="kinds">
+      <h2>What was kept</h2>{trends}
+    </section>
+    <section class="card" id="runs">
       <h2>Each run</h2>
-      <div class="cols"><span>Date</span><span>Checked</span><span>Share kept</span><span>Kept</span></div>
       <ul>{''.join(run_rows)}
       </ul>
+      <div class="foot">Blue is the share kept. Grey is about AI tools but dropped.</div>
     </section>
-    <section>
-      <h2>What was kept</h2>
-      <ul>{''.join(kind_rows)}
-      </ul>
-    </section>
-  </div>
-
-  <section class="finds">
-    <h2>Newest finds</h2>
-    <ul>{''.join(find_rows)}
-    </ul>
-  </section>
-</main>
+  </aside>
+</div>
+<script>{JS}</script>
 </html>
 """
 
