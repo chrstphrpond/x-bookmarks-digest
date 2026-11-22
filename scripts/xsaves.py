@@ -17,11 +17,18 @@ import sys
 import time
 import urllib.parse
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 STATE_DIR = Path.home() / ".local/state/x-bookmarks-digest"
 SEEN_FILE = STATE_DIR / "seen.json"
+TRENDING_FILE = STATE_DIR / "trending.json"
+# Topic -> X search words. Each topic is read from the Top tab of X search; these are not saves.
+TOPICS = {
+    "Claude": '"claude code" OR "claude skills" OR "claude opus" OR anthropic',
+    "Gemini": '"gemini cli" OR "gemini pro" OR "google gemini" OR antigravity',
+    "Codex": '"codex cli" OR "openai codex" OR "gpt codex"',
+}
 SOURCES = {
     "bookmarks": "https://x.com/i/history",
     "likes": "https://x.com/i/history/likes",
@@ -33,18 +40,22 @@ SOURCES = {
 COLLECT_JS = r"""(() => {
   const s = window.__xs = window.__xs || {items: {}};
   const fresh = [];
-  for (const a of document.querySelectorAll('article[data-testid=tweet]')) {
+  // X removed its data-testid attributes in Nov 2026, so each field also has a selector that doesn't need them
+  for (const a of document.querySelectorAll('article')) {
     const href = [...a.querySelectorAll('a[href*="/status/"]')].map(x => x.getAttribute('href'))
       .find(h => /^\/[^/]+\/status\/\d+$/.test(h));
     if (!href || s.items[href]) continue;
-    const text = [...a.querySelectorAll('[data-testid=tweetText]')].map(t => t.innerText).join('\n[quoted]\n');
-    const user = ((a.querySelector('[data-testid=User-Name]') || {}).innerText || '').replace(/\n/g, ' ');
+    const text = [...a.querySelectorAll('[data-testid=tweetText], div[lang]')].map(t => t.innerText).join('\n[quoted]\n');
+    const names = [...a.querySelectorAll('a[href="/' + href.split('/')[1] + '"]')].map(x => x.innerText.trim()).filter(Boolean);
+    const user = ((a.querySelector('[data-testid=User-Name]') || {}).innerText || names.join(' ')).replace(/\n/g, ' ');
     const card = ((a.querySelector('[data-testid="card.wrapper"]') || {}).innerText || '').slice(0, 300);
     const time = (a.querySelector('time') || {}).dateTime || '';
     s.items[href] = {link: href, user, time, text, card};
     fresh.push(href);
   }
-  const prof = document.querySelector('[data-testid=AppTabBar_Profile_Link]');
+  // X dropped the test id in Nov 2026; the nav link labelled Profile still points at the signed-in handle
+  const prof = document.querySelector('[data-testid=AppTabBar_Profile_Link]')
+    || document.querySelector('nav a[aria-label="Profile"], header a[aria-label="Profile"]');
   return JSON.stringify({fresh, y: Math.round(scrollY), h: document.body.scrollHeight,
     me: prof ? prof.getAttribute('href') : '', url: location.href});
 })()"""
@@ -159,12 +170,13 @@ def collect(a):
                 orca(["tab", "close"], a.worktree, page)
             except Exception as e:  # leaving a tab open is harmless
                 log(f"could not close tab: {e}")
-    rows = [dict(items[h], id=status_id(h), sources=[a.source]) for h in order if h in items]
-    out = {"source": a.source, "account": account, "collected_at": datetime.now().isoformat(timespec="seconds"),
+    label = getattr(a, "label", None) or a.source
+    rows = [dict(items[h], id=status_id(h), sources=[label]) for h in order if h in items]
+    out = {"source": label, "account": account, "collected_at": datetime.now().isoformat(timespec="seconds"),
            "stopped": stop, "items": rows}
     Path(a.out).write_text(json.dumps(out, ensure_ascii=False, indent=1))
     new = sum(1 for r in rows if r["id"] not in known)
-    print(f"{a.source}: {len(rows)} posts ({new} not handled yet), stopped: {stop} -> {a.out}")
+    print(f"{label}: {len(rows)} posts ({new} not handled yet), stopped: {stop} -> {a.out}")
 
 
 # ---------- expand ----------
@@ -198,6 +210,8 @@ def fetch_post(pid):
         "text": t.get("text", ""),
         "links": url_facets(t.get("raw_text")),
         "likes": t.get("likes"),
+        "created": t.get("created_timestamp"),
+        "author_name": (t.get("author") or {}).get("name"),
         "views": t.get("views"),
         "article_title": art.get("title"),
         "article": "\n".join(b.get("text", "") for b in blocks)[:6000],
@@ -334,6 +348,65 @@ def render_md(d):
     return "\n".join(out)
 
 
+# ---------- trending ----------
+
+def trending(a):
+    """Top posts on X for each topic. These are not saves: nothing is marked as handled and the note is untouched."""
+    topics = json.loads(Path(a.topics).read_text()) if a.topics else TOPICS
+    work = Path(a.workdir)
+    work.mkdir(parents=True, exist_ok=True)
+    found = {}
+    for n, (name, words) in enumerate(topics.items()):
+        out = work / f"trending-{re.sub(r'[^a-z0-9]+', '-', name.lower()).strip('-')}.json"
+        if a.reuse:  # rank the files from an earlier collection again without opening X
+            found[name] = (words, json.loads(out.read_text())["items"])
+            continue
+        if n:
+            time.sleep(a.pause)  # few and slow page loads
+        query = f"({words}) lang:en"
+        if a.min_likes:
+            query += f" min_faves:{a.min_likes}"
+        if a.days:  # Top alone returns months-old posts, so trending means recent
+            query += f" since:{(datetime.now() - timedelta(days=a.days)).strftime('%Y-%m-%d')}"
+        collect(argparse.Namespace(source="search", query=query, label=f"trending:{name}", out=str(out), worktree=a.worktree,
+                                   expect_account=a.expect_account, max_steps=a.steps, max_stall=4, stop_after_known=0,
+                                   step_px=700, focus=a.focus, keep_tab=False))
+        found[name] = (words, json.loads(out.read_text())["items"])
+    ids = sorted({r["id"] for _, rows in found.values() for r in rows})
+    log(f"fetching {len(ids)} posts")
+    with ThreadPoolExecutor(4) as pool:
+        full = dict(zip(ids, pool.map(fetch_post, ids)))
+    result = {"collected_at": datetime.now().isoformat(timespec="seconds"), "min_likes": a.min_likes, "days": a.days, "topics": []}
+    taken = set()  # a post that matches two topics is listed under the first
+    oldest = (datetime.now() - timedelta(days=a.days)).timestamp() if a.days else 0
+    for name, (words, rows) in found.items():
+        posts = []
+        for r in rows:
+            f = full.get(r["id"])
+            if not f or r["id"] in taken:
+                continue  # no like count means it can't be ranked, so it is left out, not guessed
+            if oldest and (not f.get("created") or f["created"] < oldest):
+                continue  # X's Top tab mixes in months-old posts even with since: in the query
+            handle = r["link"].split("/")[1]
+            posts.append({"id": r["id"], "url": f"https://x.com{r['link']}", "handle": handle,
+                          "name": f.get("author_name") or r["user"].split("@")[0].strip() or handle,
+                          "time": r["time"] or (datetime.fromtimestamp(f["created"]).isoformat(timespec="seconds") if f.get("created") else ""),
+                          "text": " ".join((f["text"] or r["text"]).split())[:280], "article": f.get("article_title") or "",
+                          "likes": f.get("likes") or 0, "views": f.get("views") or 0})
+        posts.sort(key=lambda x: (-x["likes"], x["id"]))
+        posts = posts[:a.keep]
+        taken |= {x["id"] for x in posts}
+        result["topics"].append({"name": name, "query": words, "seen": len(rows), "posts": posts})
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+    tmp = TRENDING_FILE.with_suffix(".tmp")
+    tmp.write_text(json.dumps(result, ensure_ascii=False, indent=1))
+    tmp.replace(TRENDING_FILE)
+    for tp in result["topics"]:
+        top = tp["posts"][0] if tp["posts"] else None
+        print(f"{tp['name']}: {tp['seen']} posts read, {len(tp['posts'])} kept" + (f", top has {top['likes']} likes (@{top['handle']})" if top else ""))
+    print(f"-> {TRENDING_FILE}")
+
+
 # ---------- state ----------
 
 def mark_seen(a):
@@ -381,6 +454,19 @@ def main():
     m.add_argument("digest")
     m.add_argument("--note", default="")
     m.set_defaults(fn=mark_seen)
+    tr = sub.add_parser("trending", help="top X posts per topic (Claude, Gemini, Codex by default); not saves")
+    tr.add_argument("--worktree", required=True, help="literal Orca selector, e.g. path:/abs/session/worktree")
+    tr.add_argument("--workdir", required=True, help="folder for the raw per-topic files, e.g. the run folder")
+    tr.add_argument("--expect-account", help="stop unless signed in as this handle")
+    tr.add_argument("--topics", help='JSON file of {"Topic": "search words"} to use instead of the defaults')
+    tr.add_argument("--min-likes", type=int, default=200, help="only posts with at least this many likes; 0 = no floor")
+    tr.add_argument("--days", type=int, default=14, help="only posts from the last this many days; 0 = any age")
+    tr.add_argument("--keep", type=int, default=6, help="posts kept per topic, most liked first")
+    tr.add_argument("--steps", type=int, default=10, help="scroll steps per topic")
+    tr.add_argument("--pause", type=float, default=8, help="seconds between topics")
+    tr.add_argument("--focus", action="store_true", help="bring the tab forward in Orca if X stops loading")
+    tr.add_argument("--reuse", action="store_true", help="rank the per-topic files already in --workdir again, without opening X")
+    tr.set_defaults(fn=trending)
     s = sub.add_parser("status")
     s.set_defaults(fn=status)
     a = ap.parse_args()

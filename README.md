@@ -8,6 +8,8 @@ Built with Claude Code by Christopher Pond Maquidato, October 2026.
 
 The dashboard, built from my own run history. `scripts/dashboard.py` writes it as one HTML file from the ledger and the note.
 
+The screenshot shows the saves view. The page also has a Trending tab and a "Trending now" card, filled by `xsaves.py trending`; they hold other people's posts, so they are left out of the picture.
+
 ## What it does
 
 1. **Collect.** Opens my bookmarks and likes in a browser tab I am already signed in to, scrolls in small steps and saves the posts. It stops at the end of the list or after 15 posts in a row it has already handled.
@@ -15,7 +17,8 @@ The dashboard, built from my own run history. `scripts/dashboard.py` writes it a
 3. **Judge.** Claude sorts each post into a kind (skill, MCP server, repo, technique, resource, build idea) or drops it.
 4. **Write.** Adds one dated section to the note, newest first. Earlier runs are never rewritten.
 5. **Mark handled.** Only after the note is saved, so a failed run loses nothing.
-6. **Dashboard.** One page with every run, what was kept and the newest finds.
+6. **Trending.** Separately from my saves, it reads the most liked posts of the last 14 days about Claude, Gemini and Codex from X search, and ranks them by likes.
+7. **Dashboard.** One page with every run, what was kept, the newest finds and the trending posts.
 
 ```
 python3 scripts/dashboard.py --note ~/notes/"X Saves for Claude.md" --out dashboard.html
@@ -27,13 +30,14 @@ python3 scripts/dashboard.py --note ~/notes/"X Saves for Claude.md" --out dashbo
 - **It remembers what it handled.** Post ids are kept in `~/.local/state/x-bookmarks-digest/seen.json`, so each run shows only new saves and a rerun never doubles an entry.
 - **It stops loudly.** If the tab is moved, or the list stops loading early, the script says so and keeps what it had.
 - **It never signs in for me.** If the session has expired it asks me to sign in.
+- **It survived X changing its page.** In November 2026 X removed the markers the collector relied on. The account check and the post reader now work without them, and the old markers are still tried first.
 
 ## What's here
 
 | File | What it is |
 |---|---|
 | `SKILL.md` | What Claude reads: the steps, the sorting rules, the note format |
-| `scripts/xsaves.py` | Collecting, expanding and the handled-posts ledger. Plain Python, no packages |
+| `scripts/xsaves.py` | Collecting, expanding, trending and the handled-posts ledger. Plain Python, no packages |
 | `scripts/dashboard.py` | The one-page dashboard. Reads the ledger and the note, writes one HTML file |
 
 ## Dashboard design

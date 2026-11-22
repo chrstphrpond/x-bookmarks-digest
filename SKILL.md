@@ -92,9 +92,21 @@ python3 S/scripts/xsaves.py mark-seen RUN/digest.json --note "kept 23"
 
 Then report in chat: posts collected, new, AI-related, kept and dropped; the three to five best new finds, one line each; and the note path.
 
-## 7. Dashboard (optional)
+## 7. Trending (optional, not saves)
 
-One page showing every run, what was kept by kind, and the newest finds. It reads only the ledger and the note:
+The most liked recent posts on X about Claude, Gemini and Codex. It reads X search's Top tab for each topic, keeps posts from the last 14 days and ranks them by likes. Nothing is marked as handled and the note is not touched.
+
+```
+python3 S/scripts/xsaves.py trending --worktree path:/abs/worktree --expect-account <your handle> --workdir RUN
+```
+
+- Three page loads, a few seconds apart. Other topics: `--topics topics.json` with `{"Topic": "search words"}`.
+- `--reuse` ranks the files already in `RUN` again without opening X.
+- If a trending post is worth keeping, add it to the note in its own `### Trending: <topic>` group at the end of the run section, like search posts.
+
+## 8. Dashboard (optional)
+
+One page showing every run, what was kept by kind, the newest finds, and the trending posts if step 7 ran. It reads only the ledger, the note and the trending file:
 
 ```
 python3 S/scripts/dashboard.py --note "~/notes/X Saves for Claude.md" --out RUN/dashboard.html

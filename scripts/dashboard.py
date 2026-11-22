@@ -16,6 +16,7 @@ import sys
 from pathlib import Path
 
 SEEN_FILE = Path.home() / ".local/state/x-bookmarks-digest" / "seen.json"
+TRENDING_FILE = SEEN_FILE.with_name("trending.json")
 RUN_EVERY_DAYS = 7
 
 KINDS = ["Skills", "MCP servers", "Repos and tools", "Techniques", "Resources", "Build ideas"]
@@ -37,6 +38,9 @@ UI = {  # lucide
     "star": '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
     "link": '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
     "post": '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
+    "heart": '<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>',
+    "eye": '<path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/>',
+    "flame": '<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.500 2 1.600 3 3.500 3 5.500a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.500z"/>',
 }
 TIMELINE = 40  # newest entries shown in the timeline
 
@@ -82,6 +86,16 @@ def read_note(path):
             entries.append({"run": run, "kind": kind, "name": name.strip()[:70], "url": link.group(2) if link else "",
                             "stars": stars.group(1) if stars else "", "post": post.group(1) if post else "", "text": text})
     return entries
+
+
+def short(n):
+    """12345 -> 12.3K, the way counts read on X."""
+    n = int(n or 0)
+    if n >= 1_000_000:
+        return f"{n / 1_000_000:.1f}M".replace(".0M", "M")
+    if n >= 1_000:
+        return f"{n / 1_000:.1f}K".replace(".0K", "K")
+    return str(n)
 
 
 def e(text):
@@ -144,6 +158,11 @@ main{border-left:1px solid var(--line);border-right:1px solid var(--line);min-he
 .embed{min-height:120px;margin-top:4px} .embed[hidden]{display:none} .embed .twitter-tweet{margin:0!important}
 .embed .wait,.embed .fail{color:var(--dim);font-size:13px;padding:12px 0} .embed .fail a{color:var(--blue)}
 .empty{padding:32px 16px;color:var(--dim);text-align:center}
+.av.t{font-weight:800;font-size:17px}
+.item .hd a.when:hover,.item .hd a.handle:hover{text-decoration:underline}
+.item p b{font-weight:700}
+.card a.trend{text-decoration:none} .trend .line{grid-column:1;font-weight:700;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.trend .meta{grid-column:1;color:var(--dim);font-size:13px;line-height:16px}
 aside{position:sticky;top:0;padding:12px 0 24px;display:grid;gap:16px}
 .card{background:var(--card);border-radius:16px;overflow:hidden}
 .card h2{font-size:20px;line-height:24px;font-weight:800;margin:0;padding:12px 16px}
@@ -165,8 +184,8 @@ aside{position:sticky;top:0;padding:12px 0 24px;display:grid;gap:16px}
 
 JS = """
 const tabs=[...document.querySelectorAll('.tabs button')],items=[...document.querySelectorAll('.item')],none=document.querySelector('.empty.filter');
-function pick(kind){tabs.forEach(b=>b.setAttribute('aria-selected',String(b.dataset.kind===kind)));let n=0;
-items.forEach(i=>{const on=kind==='All'||i.dataset.kind===kind;i.hidden=!on;if(on)n++});none.hidden=n>0}
+function pick(kind){tabs.forEach(b=>{b.setAttribute('aria-selected',String(b.dataset.kind===kind));if(b.dataset.kind===kind)b.scrollIntoView({inline:'nearest',block:'nearest'})});let n=0;
+items.forEach(i=>{const on=kind==='All'?i.dataset.kind!=='Trending':i.dataset.kind===kind;i.hidden=!on;if(on)n++});none.hidden=n>0}
 tabs.forEach(b=>b.addEventListener('click',()=>pick(b.dataset.kind)));
 let widgets;
 function loadWidgets(){return widgets||(widgets=new Promise((ok,no)=>{const t=window.twttr=window.twttr||{};t._e=t._e||[];t.ready=t.ready||(f=>t._e.push(f));
@@ -176,11 +195,11 @@ document.querySelectorAll('.show').forEach(b=>b.addEventListener('click',()=>{co
 b.setAttribute('aria-expanded',String(!open));box.hidden=open;if(open||box.dataset.done)return;box.dataset.done='1';box.innerHTML='<div class="wait">Loading the post from X</div>';
 const fail=()=>{box.innerHTML='<div class="fail">X did not return this post. <a href="'+b.dataset.url+'">Open it on X</a></div>'};
 loadWidgets().then(t=>t.widgets.createTweet(b.dataset.post,box,{theme:'dark',dnt:true,conversation:'none'})).then(el=>{const w=box.querySelector('.wait');if(w)w.remove();if(!el)fail()}).catch(fail)}));
-document.querySelectorAll('.trend').forEach(t=>t.addEventListener('click',()=>{pick(t.dataset.kind);document.getElementById('finds').scrollIntoView()}));
+document.querySelectorAll('button.trend').forEach(t=>t.addEventListener('click',()=>{pick(t.dataset.kind);document.getElementById('finds').scrollIntoView()}));
 """
 
 
-def build(seen, entries, today):
+def build(seen, entries, today, trending=None):
     runs = sorted(seen.get("runs", []), key=lambda r: r["date"])
     checked = sum(r.get("new", 0) for r in runs)
     ai = sum(r.get("ai", 0) for r in runs)
@@ -202,7 +221,43 @@ def build(seen, entries, today):
     def pct(n, of):
         return f"{(100 * n / of) if of else 0:.2f}%"
 
-    tabs = "".join(f'<button role="tab" data-kind="{e(k)}" aria-selected="{"true" if k == "All" else "false"}">{e(k)}</button>' for k in ["All"] + KINDS)
+    topics = [tp for tp in (trending or {}).get("topics", []) if tp.get("posts")]
+    tab_names = ["All"] + KINDS + (["Trending"] if topics else [])
+    tabs = "".join(f'<button role="tab" data-kind="{e(k)}" aria-selected="{"true" if k == "All" else "false"}">{e(k)}</button>' for k in tab_names)
+
+    def when(text):
+        try:
+            return f"{dt.datetime.fromisoformat(text.replace('Z', '+00:00')):%b %d}"
+        except ValueError:
+            return ""
+
+    hot_items, hot_card = [], ""
+    for tp in topics:
+        for x in tp["posts"]:
+            body = f'<b>{e(x["article"])}</b>' if x.get("article") else e(x["text"])
+            hot_items.append(f"""
+      <li class="item" data-kind="Trending" hidden>
+        <span class="av t" title="{e(tp['name'])}">{e(tp['name'][:1])}</span>
+        <div>
+          <div class="hd"><span class="name">{e(x['name'])}</span><a class="handle" href="https://x.com/{e(x['handle'])}">@{e(x['handle'])}</a><span>·</span><a class="when" href="{e(x['url'])}">{when(x['time'])}</a></div>
+          <p>{body}</p>
+          <div class="act"><span>{icon(UI['heart'])}{short(x['likes'])}</span><span>{icon(UI['eye'])}{short(x['views'])}</span><span>{e(tp['name'])}{' · Article' if x.get('article') else ''}</span><button class="show" data-post="{e(x['id'])}" data-url="{e(x['url'])}" aria-expanded="false">{icon(UI['post'])}Post</button></div>
+          <div class="embed" hidden></div>
+        </div>
+      </li>""")
+    if topics:
+        rows = "".join(f"""
+      <a class="trend" href="{e(x['url'])}">
+        <small>{e(tp['name'])} · Trending</small><span class="line">{e(x.get('article') or x['text'][:110])}</span>
+        <span class="meta">{short(x['likes'])} likes · @{e(x['handle'])}</span>
+      </a>""" for tp in topics for x in tp["posts"][:2])
+        read = when(trending.get("collected_at", ""))
+        days = trending.get("days")
+        hot_card = f"""
+    <section class="card" id="trending">
+      <h2>Trending now</h2>{rows}
+      <div class="foot">Most liked posts on X{f' in the last {days} days' if days else ''}{f', read {read}' if read else ''}. These are not saves.</div>
+    </section>"""
 
     items = []
     for x in sorted(entries, key=lambda x: x["run"], reverse=True)[:TIMELINE]:
@@ -228,6 +283,7 @@ def build(seen, entries, today):
       </li>""")
     if not items:
         items.append('<li class="empty">Nothing kept yet. Run the skill once to fill this in.</li>')
+    items += hot_items
 
     trends = "".join(f"""
       <button class="trend" data-kind="{e(k)}">
@@ -264,6 +320,7 @@ def build(seen, entries, today):
     <a href="#finds">{icon(UI['bookmark'])}<span>Finds</span></a>
     <a href="#kinds">{icon(UI['layers'])}<span>Kinds</span></a>
     <a href="#runs">{icon(UI['clock'])}<span>Runs</span></a>
+    {f'<a href="#trending">{icon(UI["flame"])}<span>Trending</span></a>' if topics else ''}
     <div class="status{' late' if late else ''}">{e(due_text)}</div>
     <div class="who"><b>x-bookmarks-digest</b>Read-only, weekly</div>
   </nav>
@@ -290,7 +347,7 @@ def build(seen, entries, today):
     </ul>
   </main>
 
-  <aside>
+  <aside>{hot_card}
     <section class="card" id="kinds">
       <h2>What was kept</h2>{trends}
     </section>
@@ -312,18 +369,20 @@ def main(argv=None):
     ap.add_argument("--note", required=True, help="the notes file the skill writes (Markdown)")
     ap.add_argument("--out", required=True, help="HTML file to write")
     ap.add_argument("--seen", default=str(SEEN_FILE), help="handled-posts ledger (default: %(default)s)")
+    ap.add_argument("--trending", default=str(TRENDING_FILE), help="trending posts from `xsaves.py trending`, if any (default: %(default)s)")
     ap.add_argument("--today", help="count days since the last run from this date (YYYY-MM-DD); default is today")
     a = ap.parse_args(argv)
     try:
         seen = json.loads(Path(a.seen).read_text(encoding="utf-8"))
         entries = read_note(Path(a.note))
         today = day(a.today) if a.today else dt.date.today()
+        hot = json.loads(Path(a.trending).read_text(encoding="utf-8")) if Path(a.trending).is_file() else None
     except (OSError, ValueError) as err:
         print(f"Stopped, nothing written: {err}", file=sys.stderr)
         return 2
     out = Path(a.out)
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(build(seen, entries, today), encoding="utf-8")
+    out.write_text(build(seen, entries, today, hot), encoding="utf-8")
     print(f"{len(entries)} kept entries across {len(seen.get('runs', []))} runs. Dashboard: {out}")
     return 0
 
