@@ -2,7 +2,7 @@
 
 A Claude Code skill I run once a week. It goes through my X bookmarks and likes, keeps the new posts about AI tools, checks each linked GitHub repo, and adds what is worth keeping to a note. It only reads; it never likes, follows, replies or posts.
 
-Written by Christopher Pond Maquidato, October 2026.
+Built with Claude Code by Christopher Pond Maquidato, October 2026.
 
 ## What it does
 
